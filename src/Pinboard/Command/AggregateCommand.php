@@ -155,7 +155,14 @@ class AggregateCommand extends Command
             return;
         }
 
-        if(file_exists( __FILE__ . '.lock')) {
+        $lockFile = __FILE__ . '.lock';
+        $lockFp = fopen($lockFile, 'w+');
+
+        if(!$lockFp) {
+			$output->writeln('<error>Warning: cannot create ' . $lockFile . ' file</error>');
+		}
+
+        if(!flock( $lockFp, LOCK_EX | LOCK_NB)) {
             $output->writeln('<error>Cannot run data aggregation: the another instance of this script is already executing. Otherwise, remove ' . __FILE__ . '.lock file</error>');
 
             if ($this->mailer && isset($this->params['notification']['global_email'])) {
@@ -173,10 +180,6 @@ class AggregateCommand extends Command
             }
 
             return;
-        }
-
-        if(!touch( __FILE__ . '.lock')) {
-            $output->writeln('<error>Warning: cannot create ' . __FILE__ . '.lock file</error>');
         }
 
         $now = new \DateTime();
@@ -598,9 +601,7 @@ class AggregateCommand extends Command
 
         $output->writeln('<info>Data are aggregated successfully</info>');
 
-        if (!unlink( __FILE__ . '.lock')) {
-            $output->writeln('<error>Error: cannot remove ' . __FILE__ . '.lock file, you must remove it manually and check server settings.</error>');
-        }
+        fclose($lockFp);
     }
 
 
