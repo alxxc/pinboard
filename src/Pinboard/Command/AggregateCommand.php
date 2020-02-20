@@ -464,9 +464,31 @@ class AggregateCommand extends Command
         $db->query($sql);
         $this->app['logger']->info('ipm_status_details done');
 
-        if ($this->params['save_slow_requests'] ?? true) {
+        if ($this->params['save_max_time_requests'] ?? true) {
             $this->addReqTimeDetails($servers);
         }
+
+        if ($this->params['save_max_mem_requests'] ?? true) {
+            $this->addReqMemDetails($servers);
+        }
+
+        if ($this->params['save_max_cpu_requests'] ?? true) {
+            $this->addReqCpuDetails($servers);
+        }
+
+        // notification about abrupt drawdown of indicators
+        $values = $this->getBorderOutValues($db, $servers);
+        $this->sendBorderOutEmails($values);
+
+        $this->app['logger']->info('aggregate done');
+        $output->writeln('<info>Data are aggregated successfully</info>');
+
+        fclose($lockFp);
+    }
+
+    private function addReqMemDetails(array $servers)
+    {
+        $db = $this->app['db'];
 
         $sql = '';
         foreach($servers as $server) {
@@ -499,15 +521,20 @@ class AggregateCommand extends Command
             $db->query($sql);
         }
         $this->app['logger']->info('ipm_mem_peak_usage_details done');
+    }
+
+    private function addReqCpuDetails(array $servers)
+    {
+        $db = $this->app['db'];
 
         $sql = '';
         foreach($servers as $server) {
             $maxCPUUsage = static::DEFAULT_HEAVY_PAGE_CPU;
             if (isset($this->params['logging']['heavy_cpu_request']['global'])) {
-               $maxCPUUsage = $this->params['logging']['heavy_cpu_request']['global'];
+                $maxCPUUsage = $this->params['logging']['heavy_cpu_request']['global'];
             }
             if (isset($this->params['logging']['heavy_cpu_request'][$server['server_name']])) {
-               $maxCPUUsage = $this->params['logging']['heavy_cpu_request'][$server['server_name']];
+                $maxCPUUsage = $this->params['logging']['heavy_cpu_request'][$server['server_name']];
             }
 
             $sql .= '
@@ -531,15 +558,6 @@ class AggregateCommand extends Command
             $db->query($sql);
         }
         $this->app['logger']->info('ipm_cpu_usage_details done');
-
-        // notification about abrupt drawdown of indicators
-        $values = $this->getBorderOutValues($db, $servers);
-        $this->sendBorderOutEmails($values);
-
-        $this->app['logger']->info('aggregate done');
-        $output->writeln('<info>Data are aggregated successfully</info>');
-
-        fclose($lockFp);
     }
 
     private function addReqTimeDetails(array $servers)
