@@ -137,8 +137,6 @@ class AggregateCommand extends Command
 
         $db = $this->app['db'];
 
-        $this->app['logger']->info('aggregation start');
-
         try {
             $this->initMailer();
         }
@@ -174,6 +172,8 @@ class AggregateCommand extends Command
             return;
         }
 
+        $this->app['logger']->info('aggregation start');
+
         $now = new \DateTime();
         $now = $now->format('Y-m-d H:i:s');
 
@@ -181,11 +181,11 @@ class AggregateCommand extends Command
         $date = new \DateTime();
         $date->sub($delta);
 
-        $params = array(
+        $params = [
             'created_at' => $date->format('Y-m-d H:i:s'),
-        );
+        ];
 
-        $tablesForClear = array(
+        $tablesForClear = [
             "ipm_report_2_by_hostname_and_server",
             "ipm_report_by_hostname",
             "ipm_report_by_hostname_and_server",
@@ -196,7 +196,7 @@ class AggregateCommand extends Command
             "ipm_cpu_usage_details",
             "ipm_timer",
             "ipm_tag_info",
-        );
+        ];
 
         $sql = '';
 
@@ -209,8 +209,10 @@ class AggregateCommand extends Command
                 created_at < :created_at
             ;';
         }
-        if ($sql != '')
+        if ($sql != '') {
             $db->executeQuery($sql, $params);
+        }
+        $this->app['logger']->info('truncate done');
 
         if (isset($this->params['notification']['enable']) && $this->params['notification']['enable']) {
             $sql = '
@@ -235,6 +237,7 @@ class AggregateCommand extends Command
             }
 
             unset($errorPages);
+            $this->app['logger']->info('notifications done');
         }
 
         $db->executeQuery('START TRANSACTION');
@@ -266,6 +269,7 @@ class AggregateCommand extends Command
 
         $sql = '';
         foreach($servers as $server) {
+            $this->app['logger']->info(sprintf('Start ipm_report_2_by_hostname_and_server for %s', $server['server_name']));
             $sql .= '
                 INSERT INTO ipm_report_2_by_hostname_and_server
                     (server_name, hostname, req_time_90, req_time_95, req_time_99, req_time_100,
