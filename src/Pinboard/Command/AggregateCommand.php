@@ -186,16 +186,16 @@ class AggregateCommand extends Command
         ];
 
         $tablesForClear = [
-            "ipm_report_2_by_hostname_and_server",
-            "ipm_report_by_hostname",
-            "ipm_report_by_hostname_and_server",
-            "ipm_report_by_server_name",
-            "ipm_req_time_details",
-            "ipm_mem_peak_usage_details",
-            "ipm_status_details",
-            "ipm_cpu_usage_details",
-            "ipm_timer",
-            "ipm_tag_info",
+            'ipm_report_2_by_hostname_and_server',
+            'ipm_report_by_hostname',
+            'ipm_report_by_hostname_and_server',
+            'ipm_report_by_server_name',
+            'ipm_req_time_details',
+            'ipm_mem_peak_usage_details',
+            'ipm_status_details',
+            'ipm_cpu_usage_details',
+            'ipm_timer',
+            'ipm_tag_info',
         ];
 
         foreach ($tablesForClear as $value) {
@@ -268,7 +268,6 @@ class AggregateCommand extends Command
 
         $sql = '';
         foreach($servers as $server) {
-            $this->app['logger']->info(sprintf('Start ipm_report_2_by_hostname_and_server for %s', $server['server_name']));
             $sql .= '
                 INSERT INTO ipm_report_2_by_hostname_and_server
                     (server_name, hostname, req_time_90, req_time_95, req_time_99, req_time_100,
@@ -465,76 +464,9 @@ class AggregateCommand extends Command
         $db->query($sql);
         $this->app['logger']->info('ipm_status_details done');
 
-        $maxReqId = $db->fetchColumn('SELECT max(id) FROM ipm_req_time_details');
-
-        $sql = '';
-        foreach($servers as $server) {
-            $maxReqTime = static::DEFAULT_SLOW_REQ_TIME;
-            if (isset($this->params['logging']['long_request_time']['global'])) {
-                $maxReqTime = $this->params['logging']['long_request_time']['global'];
-            }
-            if (isset($this->params['logging']['long_request_time'][$server['server_name']])) {
-                $maxReqTime = $this->params['logging']['long_request_time'][$server['server_name']];
-            }
-            $sql .= '
-                INSERT INTO ipm_req_time_details
-                    (request_id, server_name, hostname, script_name, req_time, mem_peak_usage, tags, tags_cnt, timers_cnt, created_at)
-                SELECT
-                    id, server_name, hostname, script_name, max(req_time), max(mem_peak_usage), max(tags), max(tags_cnt), max(timers_cnt), FROM_UNIXTIME(timestamp)
-                FROM
-                    request
-                WHERE
-                    server_name = "' . $server['server_name'] . '" AND hostname = "' . $server['hostname'] . '" AND req_time > ' . (float)$maxReqTime . '
-                GROUP BY
-                    server_name, hostname, script_name, timestamp
-                ORDER BY
-                    req_time DESC
-                LIMIT
-                    10
-            ;';
+        if ($this->params['save_slow_requests'] ?? true) {
+            $this->addReqTimeDetails($servers);
         }
-        if ($sql != '') {
-            $db->query($sql);
-
-            $sql = '
-                SELECT
-                    request_id
-                FROM
-                    ipm_req_time_details
-                WHERE
-                    id > :max_id
-            ';
-
-            $data = $db->fetchAll($sql, array('max_id' => $maxReqId));
-
-            $ids = array();
-            foreach ($data as $item) {
-                $ids[] = $item['request_id'];
-            }
-            unset($data);
-
-            if (sizeof($ids)) {
-                $sql = '
-                    INSERT INTO ipm_timer
-                        (timer_id, request_id, hit_count, value, tag_name, tag_value, created_at)
-                    SELECT
-                        t.id, t.request_id, t.hit_count, t.value, tag.name as tag_name, tt.value as tag_value, FROM_UNIXTIME(r.timestamp)
-                    FROM
-                        timer t
-                    JOIN
-                        request r ON t.request_id = r.id
-                    JOIN
-                        timertag tt ON tt.timer_id = t.id
-                    JOIN
-                        tag ON tt.tag_id = tag.id
-                    WHERE
-                        t.request_id IN (' . implode(', ', $ids) . ')
-                ';
-
-                $db->query($sql);
-            }
-        }
-        $this->app['logger']->info('ipm_timer done');
 
         $sql = '';
         foreach($servers as $server) {
@@ -608,6 +540,82 @@ class AggregateCommand extends Command
         $output->writeln('<info>Data are aggregated successfully</info>');
 
         fclose($lockFp);
+    }
+
+    private function addReqTimeDetails(array $servers)
+    {
+        $db = $this->app['db'];
+
+        $maxReqId = $db->fetchColumn('SELECT max(id) FROM ipm_req_time_details');
+
+        $sql = '';
+        foreach($servers as $server) {
+            $maxReqTime = static::DEFAULT_SLOW_REQ_TIME;
+            if (isset($this->params['logging']['long_request_time']['global'])) {
+                $maxReqTime = $this->params['logging']['long_request_time']['global'];
+            }
+            if (isset($this->params['logging']['long_request_time'][$server['server_name']])) {
+                $maxReqTime = $this->params['logging']['long_request_time'][$server['server_name']];
+            }
+            $sql .= '
+                INSERT INTO ipm_req_time_details
+                    (request_id, server_name, hostname, script_name, req_time, mem_peak_usage, tags, tags_cnt, timers_cnt, created_at)
+                SELECT
+                    id, server_name, hostname, script_name, max(req_time), max(mem_peak_usage), max(tags), max(tags_cnt), max(timers_cnt), FROM_UNIXTIME(timestamp)
+                FROM
+                    request
+                WHERE
+                    server_name = "' . $server['server_name'] . '" AND hostname = "' . $server['hostname'] . '" AND req_time > ' . (float)$maxReqTime . '
+                GROUP BY
+                    server_name, hostname, script_name, timestamp
+                ORDER BY
+                    req_time DESC
+                LIMIT
+                    10
+            ;';
+        }
+        if ($sql != '') {
+            $db->query($sql);
+
+            $sql = '
+                SELECT
+                    request_id
+                FROM
+                    ipm_req_time_details
+                WHERE
+                    id > :max_id
+            ';
+
+            $data = $db->fetchAll($sql, array('max_id' => $maxReqId));
+
+            $ids = array();
+            foreach ($data as $item) {
+                $ids[] = $item['request_id'];
+            }
+            unset($data);
+
+            if (sizeof($ids)) {
+                $sql = '
+                    INSERT INTO ipm_timer
+                        (timer_id, request_id, hit_count, value, tag_name, tag_value, created_at)
+                    SELECT
+                        t.id, t.request_id, t.hit_count, t.value, tag.name as tag_name, tt.value as tag_value, FROM_UNIXTIME(r.timestamp)
+                    FROM
+                        timer t
+                    JOIN
+                        request r ON t.request_id = r.id
+                    JOIN
+                        timertag tt ON tt.timer_id = t.id
+                    JOIN
+                        tag ON tt.tag_id = tag.id
+                    WHERE
+                        t.request_id IN (' . implode(', ', $ids) . ')
+                ';
+
+                $db->query($sql);
+            }
+        }
+        $this->app['logger']->info('ipm_timer done');
     }
 
 
