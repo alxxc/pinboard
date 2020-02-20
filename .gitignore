@@ -8,4 +8,5 @@ Thumbs.db
 /composer.phar
 /vendor
 /nbproject/*
+/var/log/
 /.idea

@@ -137,10 +137,13 @@ class AggregateCommand extends Command
 
         $db = $this->app['db'];
 
+        $this->app['logger']->info('aggregation start');
+
         try {
             $this->initMailer();
         }
         catch(\Exception $e) {
+            $this->app['logger']->error('Can\'t init mailer');
             $output->writeln('<error>Can\'t init mailer</error>');
 
             return;
@@ -150,6 +153,7 @@ class AggregateCommand extends Command
             $db->connect();
         }
         catch(\PDOException $e) {
+            $this->app['logger']->error('Can\'t connect to MySQL server');
             $output->writeln('<error>Can\'t connect to MySQL server</error>');
 
             return;
@@ -159,25 +163,13 @@ class AggregateCommand extends Command
         $lockFp = fopen($lockFile, 'w+');
 
         if(!$lockFp) {
+            $this->app['logger']->error('Cannot create ' . $lockFile . ' file');
 			$output->writeln('<error>Warning: cannot create ' . $lockFile . ' file</error>');
 		}
 
         if(!flock( $lockFp, LOCK_EX | LOCK_NB)) {
+            $this->app['logger']->notice('Cannot run data aggregation: the another instance of this script is already executing');
             $output->writeln('<error>Cannot run data aggregation: the another instance of this script is already executing. Otherwise, remove ' . __FILE__ . '.lock file</error>');
-
-            if ($this->mailer && isset($this->params['notification']['global_email'])) {
-                $body = $this->app['twig']->render('lock_notification.html.twig');
-
-                $message = \Swift_Message::newInstance()
-                    ->setSubject('Intaro Pinboard can\'t run data aggregation')
-                    ->setContentType('text/html')
-                    ->setFrom(isset($this->params['notification']['sender']) ? $this->params['notification']['sender'] : 'noreply@pinboard')
-                    ->setTo($this->params['notification']['global_email'])
-                    ->setBody($body);
-                    ;
-
-                $this->sendEmail($message);
-            }
 
             return;
         }
