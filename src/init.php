@@ -2,13 +2,17 @@
 
 require_once __DIR__.'/../vendor/autoload.php';
 
-use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Pinboard\Logger\DbalLogger;
 use Pinboard\Stopwatch\Stopwatch;
 
 $app = new Silex\Application();
 $app['params'] = Symfony\Component\Yaml\Yaml::parse(file_get_contents(__DIR__.'/../config/parameters.yml'));
+
+$app->register(new Silex\Provider\MonologServiceProvider(), [
+    'monolog.logfile' => dirname(__DIR__).'/var/log/dev.log',
+    'monolog.level' => $app['params']['monolog']['level'] ?? \Monolog\Logger::INFO,
+    'monolog.use_error_handler' => true,
+]);
 
 $app->register(new Silex\Provider\SessionServiceProvider());
 $app->register(new Silex\Provider\TwigServiceProvider(), array(
