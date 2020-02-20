@@ -198,18 +198,17 @@ class AggregateCommand extends Command
             "ipm_tag_info",
         ];
 
-        $sql = '';
-
         foreach ($tablesForClear as $value) {
-            $sql .= '
+            $this->app['logger']->info(sprintf('Truncate table %s', $value));
+
+            $sql = '
             DELETE
             FROM
                 ' . $value . '
             WHERE
                 created_at < :created_at
             ;';
-        }
-        if ($sql != '') {
+
             $db->executeQuery($sql, $params);
         }
         $this->app['logger']->info('truncate done');
@@ -303,8 +302,9 @@ class AggregateCommand extends Command
                 LIMIT 1
             ;';
         }
-        if ($sql != '')
+        if ($sql != '') {
             $db->query($sql);
+        }
 
         $db->executeQuery('COMMIT');
         $this->app['logger']->info('ipm_report_2_by_hostname_and_server done');
