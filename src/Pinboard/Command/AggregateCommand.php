@@ -311,6 +311,7 @@ class AggregateCommand extends Command
             $db->query($sql);
 
         $db->executeQuery('COMMIT');
+        $this->app['logger']->info('ipm_report_2_by_hostname_and_server done');
 
         $sql = '
             INSERT INTO ipm_report_by_hostname
@@ -356,6 +357,7 @@ class AggregateCommand extends Command
                     server_name, req_time_median, p90, p95, p99, \'' . $now . '\' FROM ipm_pinba_report_by_server_90_95_99;
         ';
         $db->query($sql);
+        $this->app['logger']->info('ipm_report_by_server_name done');
 
         //insert timers reports
         $sql = '
@@ -448,6 +450,7 @@ class AggregateCommand extends Command
                 ipm_pinba_tag_info_category_server_server_name_hostname;
         ';
         $db->query($sql);
+        $this->app['logger']->info('ipm_tag_info done');
 
         $sql = '
             INSERT INTO
@@ -464,6 +467,7 @@ class AggregateCommand extends Command
                 25
         ';
         $db->query($sql);
+        $this->app['logger']->info('ipm_status_details done');
 
         $maxReqId = $db->fetchColumn('SELECT max(id) FROM ipm_req_time_details');
 
@@ -534,6 +538,7 @@ class AggregateCommand extends Command
                 $db->query($sql);
             }
         }
+        $this->app['logger']->info('ipm_timer done');
 
         $sql = '';
         foreach($servers as $server) {
@@ -562,8 +567,10 @@ class AggregateCommand extends Command
                     10
             ;';
         }
-        if ($sql != '')
+        if ($sql != '') {
             $db->query($sql);
+        }
+        $this->app['logger']->info('ipm_mem_peak_usage_details done');
 
         $sql = '';
         foreach($servers as $server) {
@@ -592,13 +599,16 @@ class AggregateCommand extends Command
                       10
             ;';
         }
-        if ($sql != '')
-           $db->query($sql);
+        if ($sql != '') {
+            $db->query($sql);
+        }
+        $this->app['logger']->info('ipm_cpu_usage_details done');
 
         // notification about abrupt drawdown of indicators
         $values = $this->getBorderOutValues($db, $servers);
         $this->sendBorderOutEmails($values);
 
+        $this->app['logger']->info('aggregate done');
         $output->writeln('<info>Data are aggregated successfully</info>');
 
         fclose($lockFp);
