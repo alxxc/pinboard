@@ -465,15 +465,15 @@ class AggregateCommand extends Command
         $this->app['logger']->info('ipm_status_details done');
 
         if ($this->params['save_max_time_requests'] ?? true) {
-            $this->addReqTimeDetails($servers);
+            $this->saveReqTimeDetails($servers);
         }
 
         if ($this->params['save_max_mem_requests'] ?? true) {
-            $this->addReqMemDetails($servers);
+            $this->saveReqMemDetails($servers);
         }
 
         if ($this->params['save_max_cpu_requests'] ?? true) {
-            $this->addReqCpuDetails($servers);
+            $this->saveReqCpuDetails($servers);
         }
 
         // notification about abrupt drawdown of indicators
@@ -486,7 +486,7 @@ class AggregateCommand extends Command
         fclose($lockFp);
     }
 
-    private function addReqMemDetails(array $servers)
+    private function saveReqMemDetails(array $servers)
     {
         $db = $this->app['db'];
 
@@ -523,7 +523,7 @@ class AggregateCommand extends Command
         $this->app['logger']->info('ipm_mem_peak_usage_details done');
     }
 
-    private function addReqCpuDetails(array $servers)
+    private function saveReqCpuDetails(array $servers)
     {
         $db = $this->app['db'];
 
@@ -560,7 +560,7 @@ class AggregateCommand extends Command
         $this->app['logger']->info('ipm_cpu_usage_details done');
     }
 
-    private function addReqTimeDetails(array $servers)
+    private function saveReqTimeDetails(array $servers)
     {
         $db = $this->app['db'];
 
