@@ -477,8 +477,10 @@ class AggregateCommand extends Command
         }
 
         // notification about abrupt drawdown of indicators
-        $values = $this->getBorderOutValues($db, $servers);
-        $this->sendBorderOutEmails($values);
+        if (isset($this->params['notification']['list']) || isset($this->params['notification']['global_email'])) {
+            $values = $this->getBorderOutValues($db, $servers);
+            $this->sendBorderOutEmails($values);
+        }
 
         $this->app['logger']->info('aggregate done');
         $output->writeln('<info>Data are aggregated successfully</info>');
