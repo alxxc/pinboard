@@ -408,6 +408,7 @@ $server->get(
     );
 })
 ->value('hostName', 'all')
+->value('tagFilter', '')
 ->bind('server_timers');
 
 function getTimersList($conn, $serverName, $hostName, $valueField, $period, $serverFilter, string $filter = null) {
