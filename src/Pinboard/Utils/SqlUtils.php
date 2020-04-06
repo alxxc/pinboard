@@ -9,7 +9,7 @@ class SqlUtils
 {
     public static function getDateGroupExpression($period, $field = 'created_at')
     {
-        if (false !== stripos($period, '1 day')) {
+        if (false !== stripos($period, '1 day') || false !== stripos($period, 'hour')) {
             return $field;
         }
         if (false !== stripos($period, '1 week') || false !== stripos($period, '3 days')) {

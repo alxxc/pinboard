@@ -512,6 +512,7 @@ function getTimersList($conn, $serverName, $hostName, $valueField, $period, $ser
             server_name = :server_name
             ' . $hostCondition . '
             ' . $serverCondition . '
+            ' . $filterCondition . '
             AND `category` IS NOT NULL
             AND created_at > :created_at
         GROUP BY
