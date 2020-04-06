@@ -33,7 +33,7 @@
             {% for date, item in chart.data.values %}
             {{ chart.field }}ChartData.push({
                 {% for timer in chart.data.timers %}
-                '{{ timer }}': {{ item[timer] is defined and item[timer] > 0 ? item[timer] : 0 }},
+                {{ timer|json_encode()|raw }}: {{ item[timer] is defined and item[timer] > 0 ? item[timer] : 0 }},
                 {% endfor %}
                 date: new Date({{ date }})
             });
@@ -63,21 +63,21 @@
                 // GRAPH
                 var graph;
 
-                {% for timer in chart.data.timers %}
+                {% for timer in chart.data.timers|filter(t => t != 'global_timer') %}
                 graph = new AmCharts.AmGraph();
                 graph.type = "line"; // try to change it to "column"
                 {% if request_graphs[timer] is defined %}
-                graph.title = "{{ request_graphs[timer]['title'] }}";
+                graph.title = {{ request_graphs[timer]['title']|json_encode()|raw }};
                 graph.stackable = false;
                 graph.lineAlpha = 0.5;
                 graph.fillAlphas = 0.3;
                 {% else %}
-                graph.title = "{{ timer }}";
+                graph.title = {{ timer|json_encode()|raw }};
                 graph.lineAlpha = 1;
                 graph.fillAlphas = 1;
                 {% endif %}
                 graph.balloonText = "[[value]]{{ chart.unit }}";
-                graph.valueField = "{{ timer }}";
+                graph.valueField = {{ timer|json_encode()|raw }};
                 graph.type = "smoothedLine";
                 {{ chart.field }}Chart.addGraph(graph);
                 {% endfor %}

@@ -14,7 +14,14 @@ $rowPerPage = ($rowPerPage > 0) ? $rowPerPage : $ROW_PER_PAGE;
 
 $server = $app['controllers_factory'];
 
-$allowedPeriods = array('1 day', '3 days', '1 week', '1 month');
+$allowedPeriods = [
+    '1 hour',
+    '3 hours',
+    '1 day',
+    '3 days',
+    '1 week',
+    '1 month'
+];
 
 $server->get('/{serverName}/{hostName}/overview.{format}', function(Request $request, $serverName, $hostName, $format) use ($app, $allowedPeriods) {
     $idn = new IDNaConvert(array('idn_version' => 2008));
@@ -23,7 +30,7 @@ $server->get('/{serverName}/{hostName}/overview.{format}', function(Request $req
     Utils::checkUserAccess($app, $serverName);
 
     $period = $request->get('period', '1 day');
-    if (!in_array($period, $allowedPeriods)) {
+    if (!in_array($period, $allowedPeriods, true)) {
         $period = '1 day';
     }
 
@@ -327,11 +334,15 @@ function getRequestReview($conn, $serverName, $hostName, $period) {
     return $data;
 }
 
-$server->get('/{serverName}/{hostName}/timers', function(Request $request, $serverName, $hostName) use ($app, $allowedPeriods) {
+$server->get(
+    '/{serverName}/{hostName}/timers/{tagFilter}',
+    function(Request $request, $serverName, $hostName, $tagFilter) use ($app, $allowedPeriods)
+    {
+
     Utils::checkUserAccess($app, $serverName);
 
     $period = $request->get('period', '1 day');
-    if (!in_array($period, $allowedPeriods)) {
+    if (!in_array($period, $allowedPeriods, true)) {
         $period = '1 day';
     }
 
@@ -339,9 +350,9 @@ $server->get('/{serverName}/{hostName}/timers', function(Request $request, $serv
     if (!in_array($serverFilter, array('on', 'off'))) {
         $serverFilter = 'off';
     }
-    $serverFilter = $serverFilter == 'on';
+    $serverFilter = $serverFilter === 'on';
 
-    $result = array(
+    $result = [
         'hosts' => getHosts($app['db'], $serverName),
         'title' => $serverName,
         'periods' => $allowedPeriods,
@@ -349,7 +360,7 @@ $server->get('/{serverName}/{hostName}/timers', function(Request $request, $serv
         'server_filter' => $serverFilter,
         'server_name' => $serverName,
         'hostname' => $hostName,
-        'charts' => array(
+        'charts' => [
             /*'timer_median' => array(
                 'title' => 'Request time',
                 'subtitle' => 'median',
@@ -364,32 +375,32 @@ $server->get('/{serverName}/{hostName}/timers', function(Request $request, $serv
                 'unit' => ' ms',
                 'data' => getTimersList($app['db'], $serverName, $hostName, 'timer_p95', $period, $serverFilter),
             ),*/
-            'hit_count' => array(
+            'hit_count' => [
                 'title' => 'Hit count',
                 'field' => 'hit_count',
                 'unit' => '',
-                'data' => getTimersList($app['db'], $serverName, $hostName, 'hit_count', $period, $serverFilter),
-            ),
-            'timer_value' => array(
+                'data' => getTimersList($app['db'], $serverName, $hostName, 'hit_count', $period, $serverFilter, $tagFilter),
+            ],
+            'timer_value' => [
                 'title' => 'Timer value',
                 'subtitle' => 'total',
                 'field' => 'timer_value',
                 'unit' => ' s',
-                'data' => getTimersList($app['db'], $serverName, $hostName, 'timer_value', $period, $serverFilter),
-            ),
-        ),
-        'request_graphs' => array(
-            'req_time_median' => array(
+                'data' => getTimersList($app['db'], $serverName, $hostName, 'timer_value', $period, $serverFilter, $tagFilter),
+            ],
+        ],
+        'request_graphs' => [
+            'req_time_median' => [
                 'title' => 'Request time (median)',
-            ),
-            'req_time_p95' => array(
+            ],
+            'req_time_p95' => [
                 'title' => 'Request time (95th percentile)',
-            ),
-            'req_time_total' => array(
+            ],
+            'req_time_total' => [
                 'title' => 'Total request time',
-            ),
-        ),
-    );
+            ],
+        ],
+    ];
 
     return $app['twig']->render(
         'timers.html.twig',
@@ -399,7 +410,7 @@ $server->get('/{serverName}/{hostName}/timers', function(Request $request, $serv
 ->value('hostName', 'all')
 ->bind('server_timers');
 
-function getTimersList($conn, $serverName, $hostName, $valueField, $period, $serverFilter) {
+function getTimersList($conn, $serverName, $hostName, $valueField, $period, $serverFilter, string $filter = null) {
     $params = array(
         'server_name' => $serverName,
         'created_at'  => date('Y-m-d H:i:s', strtotime('-' . $period)),
@@ -483,6 +494,12 @@ function getTimersList($conn, $serverName, $hostName, $valueField, $period, $ser
         }
 
         $timers[] = $aggregation[$valueField]['req_field'];
+    }
+
+    $filterCondition = '';
+    if ($filter) {
+        $filterEscaped = $conn->quote($filter);
+        $filterCondition = 'AND category like \'%'.$filterEscaped.'%\'';
     }
 
     $sql = '
