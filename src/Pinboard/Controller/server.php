@@ -499,7 +499,7 @@ function getTimersList($conn, $serverName, $hostName, $valueField, $period, $ser
 
     $filterCondition = '';
     if ($filter) {
-        $filterEscaped = $conn->quote($filter);
+        $filterEscaped = trim($conn->quote($filter), "'");
         $filterCondition = 'AND category like \'%'.$filterEscaped.'%\'';
     }
 
