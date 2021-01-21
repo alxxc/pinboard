@@ -241,6 +241,7 @@ class AggregateCommand extends Command
 
         $db->executeQuery('START TRANSACTION');
 
+        $this->app['logger']->info('fetch server stat');
         $sql = '
             SELECT
                 server_name, hostname, COUNT(*) AS cnt
@@ -268,11 +269,13 @@ class AggregateCommand extends Command
 
         $sql = '';
         foreach($servers as $server) {
+            $this->app['logger']->info(sprintf('start ipm_report_2_by_hostname_and_server for %s %s', $server['server_name'], $server['hostname']));
             $sql .= '
                 INSERT INTO ipm_report_2_by_hostname_and_server
-                    (server_name, hostname, req_time_90, req_time_95, req_time_99, req_time_100,
-                     mem_peak_usage_90, mem_peak_usage_95, mem_peak_usage_99, mem_peak_usage_100,
-                     cpu_peak_usage_90, cpu_peak_usage_95, cpu_peak_usage_99, cpu_peak_usage_100,
+                    (server_name, hostname, 
+                     req_time_90, req_time_95, req_time_99, req_time_100,
+                     mem_peak_usage_90, mem_peak_usage_95, mem_peak_usage_99,
+                     cpu_peak_usage_90, cpu_peak_usage_95, cpu_peak_usage_99,
                      created_at)
                 SELECT
                     r2.server_name,
@@ -284,11 +287,9 @@ class AggregateCommand extends Command
                     ' . sprintf($subselectTemplate, 'mem_peak_usage', 'mem_peak_usage', $server['cnt'] * (1 - 0.90), 'mem_peak_usage_90') . ',
                     ' . sprintf($subselectTemplate, 'mem_peak_usage', 'mem_peak_usage', $server['cnt'] * (1 - 0.95), 'mem_peak_usage_95') . ',
                     ' . sprintf($subselectTemplate, 'mem_peak_usage', 'mem_peak_usage', $server['cnt'] * (1 - 0.99), 'mem_peak_usage_99') . ',
-                    ' . sprintf($subselectTemplate, 'mem_peak_usage', 'mem_peak_usage', $server['cnt'] * (1 - 1.00), 'mem_peak_usage_100') . ',
                     ' . sprintf($subselectTemplate, 'ru_utime', 'ru_utime', $server['cnt'] * (1 - 0.90), 'cpu_peak_usage_90') . ',
                     ' . sprintf($subselectTemplate, 'ru_utime', 'ru_utime', $server['cnt'] * (1 - 0.95), 'cpu_peak_usage_95') . ',
                     ' . sprintf($subselectTemplate, 'ru_utime', 'ru_utime', $server['cnt'] * (1 - 0.99), 'cpu_peak_usage_99') . ',
-                    ' . sprintf($subselectTemplate, 'ru_utime', 'ru_utime', $server['cnt'] * (1 - 1.00), 'cpu_peak_usage_100') . ',
                     \'' . $now . '\'
                 FROM
                     request r2
